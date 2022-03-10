@@ -11,18 +11,18 @@ pré treinados.
 - [@willianrodrigo](https://github.com/willHub99)
 
 
-## Instalação
+## Instalação de bibliotecas
 
 Clone o projeto
 
 ```bash
-  git clone 
+  git clone https://github.com/willHub99/facial_landmark.git
 ```
 
 Entre no diretório do projeto
 
 ```bash
-  cd controller_webcam
+  cd your-path/controller_webcam
 ```
 
 Instale as dependências
@@ -32,7 +32,23 @@ Instale as dependências
 ```
 
 ```bash
+  pip install scipy
+```
+
+```bash
   pip install opencv-python
+```
+
+```bash
+  pip install pickle5
+```
+
+```bash
+  pip install imutils
+```
+
+```bash
+  pip install matplotlib
 ```
 
 ### instalar a biblioteca dlib
@@ -84,6 +100,6 @@ Inicie a Aplicação
 
 ## Referência
 
- - [facial landmarks recognition](https://github.com/italojs/facial-landmarks-recognition)
+ - [Mapeamento facial (landmarks) com Dlib + python](https://medium.com/brasil-ai/mapeamento-facial-landmarks-com-dlib-python-3a200bb35b87)
  - [Como Controlar WebCam com Python - Introdução ao OpenCV](https://www.youtube.com/watch?v=r8Qg3NfdiHc&ab_channel=HashtagPrograma%C3%A7%C3%A3o)
- 
+ - [Eye blink detection with OpenCV, Python, and dlib](https://pyimagesearch.com/2017/04/24/eye-blink-detection-opencv-python-dlib/)
