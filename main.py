@@ -6,6 +6,9 @@ import cv2
 import pickle
 import dlib
 from plot import PlotEAR
+import datetime
+import pandas as pd 
+import seaborn as sns 
 
 def eye_aspect_ratio(eye):
     # realiza o calculo da distancia euclidiana dos pontos verticais
@@ -35,7 +38,7 @@ FACIAL_LANDMARKS_IDXS = OrderedDict([
 (rStart, rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
 
 #armazena o diretorio onde a imagem de teste será armazenada
-dir_image = "../controller_webcam/images/Foto_teste.png"
+dir_image = "../controller_webcam/assets/result.png"
 
 # Vamos inicializar um detector de faces (HOG) para então
 # fazer a predição dos pontos da nossa face.
@@ -43,8 +46,14 @@ p = "modelo/shape_predictor_68_face_landmarks.dat"
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(p)
 
-#dicionario que armazena a série temporal
+#dicionario que armazena a série temporal dos valores EAR
 data = {'ear': []}
+
+time = {'time': []}
+
+switch_square = 0.5
+
+square = {'square': []}
 
 #Permite que o opencv se conecte com a camera do pc
 webcam = cv2.VideoCapture(0)
@@ -61,6 +70,7 @@ if webcam.isOpened():
         # frame -> array de listas com os valores RGB de cada pixel do frame capturado pela camera
         # [[34,56,45], ... [45, 78, 23]]
         validacao, frame = webcam.read()
+
         #trasnforma de RGB -> Gray Scale
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -91,13 +101,31 @@ if webcam.isOpened():
             # arredondando o valor de ear para duas cadas decimais
             ear_arredondado = round(ear, 2)
 
+            # adiciona o valor de EAE arredondado na serie temporal
             data['ear'].append(ear_arredondado)
 
+            #define o nome da coluna para ear
+            colum_name = ['ear']
+            #cria um pandas dataframe
+            dados = pd.DataFrame(data['ear'], columns=colum_name)
+            #define um novo valor para ear (média - variância)
+            new_ear = round(dados['ear'].mean(), 4) - round(dados['ear'].var(), 4)
+            #atualiza o valor do EYE_AR_THRESH
+            EYE_AR_THRESH = round(new_ear, 2)
+
+            # armazena data atual 
+            now = datetime.datetime.now()
+            time["time"].append(now)
+
+            square["square"].append(switch_square)
+
             if ear < EYE_AR_THRESH:
+                switch_square = 0
                 COUNTER += 1
                 if COUNTER >= EYE_AR_CONSEC_FRAMES:
                     cv2.putText(frame, "ALERTA [FADIGA!!!]", (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
             else:
+                switch_square = 0.5
                 COUNTER = 0
 
             for(name, (i,j)) in FACIAL_LANDMARKS_IDXS.items():
@@ -105,7 +133,10 @@ if webcam.isOpened():
                 for (x, y) in shape[i:j]:
                     cv2.circle(frame, (x, y), 2, (0, 255, 0), -1)
 
-            cv2.putText(frame, "EAR: {:.2f}".format(ear), (300, 30),
+            cv2.putText(frame, "EAR: {:.2f}".format(ear), (500, 30),
+			cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
+            cv2.putText(frame, "EYE_AR_THRESH: {:.2f}".format(EYE_AR_THRESH), (250, 30),
 			cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
  
         cv2.imshow("Controller Webcam", frame)
@@ -116,9 +147,20 @@ if webcam.isOpened():
         
         # 27 -> numero da tecla ESC
         if key == 27:
-            save_ear = pickle.dumps(data['ear'])
-            teste = PlotEAR(save_ear)
+
+
+            with open('files/ear.pkl', 'wb') as handle:
+                pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+            with open('files/time.pkl', 'wb') as handle:
+                pickle.dump(time, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+            with open('files/square.pkl', 'wb') as handle:
+                pickle.dump(square, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+            teste = PlotEAR()
             teste.PlotEAR()
+            
             #salva um frame da camera na pasta images
             cv2.imwrite(dir_image, frame)
             break

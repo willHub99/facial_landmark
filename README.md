@@ -82,11 +82,6 @@ Baixe o arquivo compactado: https://github.com/davisking/dlib
 ```bash
   pip install your-path-directory/dlib-19.23.0.zip
 ```
-
-
-
-
-
     
 ## Rodando localmente
 
@@ -96,6 +91,28 @@ Inicie a Aplicação
 ```bash
   python main.py
 ```
+
+
+## Screenshots
+
+- Captura da câmera
+
+<p align="center">
+  <img src="">
+</p>
+
+- Captura da câmera - Incidente
+
+<p align="center">
+  <img src="">
+</p>
+## Demonstração
+
+<p align="center">
+  <img src="">
+</p>
+
+
 
 
 ## Referência
