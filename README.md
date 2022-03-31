@@ -98,18 +98,18 @@ Inicie a Aplicação
 - Captura da câmera
 
 <p align="center">
-  <img src="">
+  <img src="https://github.com/willHub99/facial_landmark/blob/main/assets/result.png">
 </p>
 
 - Captura da câmera - Incidente
 
 <p align="center">
-  <img src="">
+  <img src="https://github.com/willHub99/facial_landmark/blob/main/assets/detection_fatigue.png">
 </p>
 ## Demonstração
 
 <p align="center">
-  <img src="">
+  <img src="https://github.com/willHub99/facial_landmark/blob/main/assets/captura_eventos.gif">
 </p>
 
 
