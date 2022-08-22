@@ -1,6 +1,6 @@
- __pycache__
-./assets/images/colorful/
-./assets/images/gray/
-./assets/files/ear/
-./assets/files/ear/
-./assets/files/time/
+.__pycache__
+./assets/images/colorful/*
+./assets/images/gray/*
+./assets/files/ear/*
+./assets/files/ear/*
+./assets/files/time/*
