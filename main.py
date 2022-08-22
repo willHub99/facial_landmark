@@ -60,7 +60,6 @@ class WebcamController:
     dir_base = os.getcwd()
 
     #armazena o diretorio onde a imagem colorida será armazenada
-    print("diretoriooooooooooooooooooooooo: " + os.getcwd())
     dir_image_colorful = f"{dir_base}/assets/images/colorful/{date_format}.png"
 
     #armazena o diretorio onde a imagem colorida será armazenada
