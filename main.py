@@ -10,6 +10,7 @@ import datetime
 import pandas as pd 
 from threading import Thread
 import playsound
+import os
 
 #=====================================================================================
 #===================classe responsavel por controlar acoes da camera==================
@@ -47,7 +48,7 @@ class WebcamController:
     predictor = dlib.shape_predictor(model)
 
     #Permite que o opencv se conecte com a camera do pc
-    webcam = cv2.VideoCapture(1)
+    webcam = cv2.VideoCapture(0)
 
     #armazena a data atual
     now = datetime.datetime.now()
@@ -55,20 +56,24 @@ class WebcamController:
     #formata data para ano-mes-dia/hora-minuto-segundo
     date_format = str(now.year) + '-' + str(now.month) + '-' + str(now.day) + '_' + str(now.hour) + '-' + str(now.minute) + '-' + str(now.second)
 
-    #armazena o diretorio onde a imagem colorida será armazenada
-    dir_image_colorful = f"../controller_webcam/assets/images/colorful/{date_format}.png"
+    #armazena o diretório base do projeto
+    dir_base = os.getcwd()
 
     #armazena o diretorio onde a imagem colorida será armazenada
-    dir_image_gray_scale = f"../controller_webcam/assets/images/gray/{date_format}.png"
+    print("diretoriooooooooooooooooooooooo: " + os.getcwd())
+    dir_image_colorful = f"{dir_base}/assets/images/colorful/{date_format}.png"
+
+    #armazena o diretorio onde a imagem colorida será armazenada
+    dir_image_gray_scale = f"{dir_base}/assets/images/gray/{date_format}.png"
 
     #armazena o diretorio onde o arquivo dos dados do dicionario data sera armazenado
-    dir_ear_file = f"../controller_webcam/assets/files/ear/ear_{date_format}.pkl"
+    dir_ear_file = f"{dir_base}/assets/files/ear/ear_{date_format}.pkl"
 
     #armazena o diretorio onde o arquivo dos dados do dicionario time sera armazenado
-    dir_time_file = f"../controller_webcam/assets/files/time/time_{date_format}.pkl"
+    dir_time_file = f"{dir_base}/assets/files/time/time_{date_format}.pkl"
 
     #armazena o diretorio onde o arquivo dos dados do dicionario square sera armazenado
-    dir_square_file = f"../controller_webcam/assets/files/square/square_{date_format}.pkl"
+    dir_square_file = f"{dir_base}/assets/files/square/square_{date_format}.pkl"
 
     # Limiar utilizado para delimitar evento de sonolência
     EYE_AR_THRESH = 0.3
