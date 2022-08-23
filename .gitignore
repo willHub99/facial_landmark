@@ -1,6 +1,5 @@
+#ignora o cache do python
 __pycache__
-assets/files/ear/*
-assets/files/square/*
-assets/files/time/*
-assets/images/colorful/*
-assets/images/gray/*
+#ignora arquivos de log
+*.png
+*.pkl
