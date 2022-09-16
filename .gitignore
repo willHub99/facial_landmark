@@ -1,5 +1,6 @@
 #ignora o cache do python
-__pycache__
+ __pycache__
+ *.pyc
 #ignora arquivos de log
 *.png
 *.pkl

@@ -6,11 +6,19 @@ import cv2
 import pickle
 import dlib
 from plot import Plot
+from collections import OrderedDict
+from imutils import face_utils
+import os
 import datetime
-import pandas as pd 
 from threading import Thread
 import playsound
 import os
+import pandas as pd
+from sklearn.ensemble import IsolationForest
+import math
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+scaler = MinMaxScaler()
 
 #=====================================================================================
 #===================classe responsavel por controlar acoes da camera==================
@@ -75,15 +83,15 @@ class WebcamController:
     dir_square_file = f"{dir_base}/assets/files/square/square_{date_format}.pkl"
 
     # Limiar utilizado para delimitar evento de sonolência
-    EYE_AR_THRESH = 0.3
+    EYE_EAR_THRESH = 0.3
     # quantidade de frames que o olho deve estar abaixo do limite
-    EYE_AR_CONSEC_FRAMES = 30
+    EYE_EAR_CONSEC_FRAMES = 30
 
     # Contadores de quadros
     COUNTER = 0
 
     #variavel que armazena o valor atual da onda quadrada (0,5 -> olho aberto, 0 -> olho fechado)
-    switch_square = 0.4
+    switch_square = 1
 
     #armazena os valores de switch_square
     square = {'square': []}
@@ -113,31 +121,51 @@ class WebcamController:
         # realiza o calculo da distancia euclidiana dos pontos horizontais
         C = dist.euclidean(eye[0], eye[3])
         
-        ear = (A + B) / (2.0 * C)
+        return (A + B) / (2.0 * C)
 
-        return ear
-    
     def calculateAverageAndInsertIntoTheEARList(self, leftEAR: float, rightEAR: float):
         # eye avarage ratio -> proporção média dos olhos
         ear = (leftEAR + rightEAR) / 2
 
         # arredondando o valor de ear para duas cadas decimais
-        ear_arredondado = round(ear, 2)
+        #ear_arredondado = round(ear, 2)
+        ear_arredondado = ear
+
+        '''if self.data['ear'] and (max(self.data['ear']) - min(self.data['ear'])):
+            std = ( ear_arredondado - min(self.data['ear']) )/ (max(self.data['ear']) - min(self.data['ear']))
+            ear_scaled = std * (1 - 0) + 0
+        else:
+            ear_scaled = ear_arredondado'''
 
         # adiciona o valor de EAE arredondado na serie temporal
-        self.data['ear'].append(ear_arredondado)
+        self.data['ear'].append(ear)
     
-        return ear, ear_arredondado
+        return ear_arredondado
 
-    def calculateAvarageAndVariance(self):
-        #define o nome da coluna para ear
-        colum_name = ['ear']
+    def updateEyeEarThresh(self):
+
+        dados = {
+            "ear": self.data['ear']
+        }
 
         #cria um pandas dataframe
-        dados = pd.DataFrame(self.data['ear'], columns=colum_name)
+        dados = pd.DataFrame(dados)
 
         #define um novo valor para ear (média - variância)
         new_ear = round(dados['ear'].mean(), 4) - round(dados['ear'].var(), 4)
+
+        #instância o modelo de floresta de isolação
+        isolation_model = IsolationForest(contamination = 0.03)
+        #treina o modelo 
+        isolation_model.fit(dados)
+        #rotula dados:
+        #  1: dados normais
+        #  -1: valoresa discrepantes 
+        predictions = isolation_model.predict(dados)
+
+        if -1 in list(predictions):
+            outlier = len(list(predictions)) - 1 - list(predictions)[::-1].index(-1)
+            return dados['ear'][outlier]
 
         return round(new_ear, 2)
 
@@ -168,7 +196,7 @@ class WebcamController:
             self.ALARM_ON = True
             t = Thread(target=self.sound_alarm)
             t.start()
-    
+
     #==========================================================
     #=================MANIPULACAO DA CAMERA====================
     #==========================================================
@@ -191,6 +219,9 @@ class WebcamController:
 
                 # Detectando as faces em preto e branco.
                 rects = self.detector(gray, 0)
+
+                #armazena no dicionario time os valores de tempo da serie temporal
+                self.setTime()
             
                 # para cada face encontrada, encontre os pontos de interesse.
                 for (i, rect) in enumerate(rects):
@@ -210,30 +241,29 @@ class WebcamController:
                     #realiza o calculo da proporção do olho direito
                     rightEAR = self.eye_aspect_ratio(right_eye)
 
-                    ear, ear_arredondado = self.calculateAverageAndInsertIntoTheEARList(leftEAR, rightEAR)
+                    ear = self.calculateAverageAndInsertIntoTheEARList(leftEAR, rightEAR)
 
-                    #atualiza o valor do EYE_AR_THRESH
-                    EYE_AR_THRESH = self.calculateAvarageAndVariance()
+                    #atualiza o valor do EYE_EAR_THRESH
+                    EYE_EAR_THRESH = self.updateEyeEarThresh()
 
-                    #armazena no dicionario time os valores de tempo da serie temporal
-                    self.setTime()
-
-                     
                     #armazena os valores da onda quadrada no dicionario esquare
                     self.square["square"].append(self.switch_square)
 
-                    if ear < EYE_AR_THRESH:
-                        self.switch_square = 0.2
+                    if ear < EYE_EAR_THRESH:
+                        self.switch_square = 0
                         COUNTER += 1
-                        if COUNTER >= self.EYE_AR_CONSEC_FRAMES:
-                            cv2.putText(frame, "ALERTA [FADIGA!!!]", (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+                        if COUNTER >= self.EYE_EAR_CONSEC_FRAMES:
                             self.savePictures(frame, gray)
-
                             #aciona a sirene de alerta
                             self.initThreadAlarmSound()
 
+                            cv2.putText(frame, "!!! ALERTA FADIGA !!!" , (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
+
                     else:
-                        self.switch_square = 0.4
+
+                        cv2.putText(frame, "!!! Status: Atento !!!" , (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+
+                        self.switch_square = 1
                         COUNTER = 0
                         self.ALARM_ON = False
 
@@ -244,8 +274,8 @@ class WebcamController:
 
                     cv2.putText(frame, "EAR: {:.2f}".format(ear), (500, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-
-                    cv2.putText(frame, "EYE_AR_THRESH: {:.2f}".format(EYE_AR_THRESH), (250, 30),
+            
+                    cv2.putText(frame, "EYE_EAR_THRESH: {:.2f}".format(EYE_EAR_THRESH), (365, 80),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
         
                 cv2.imshow("Controller Webcam", frame)
