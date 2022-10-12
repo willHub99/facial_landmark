@@ -19,6 +19,8 @@ import math
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 scaler = MinMaxScaler()
+from sklearn.cluster import KMeans
+import urllib.request
 
 #=====================================================================================
 #===================classe responsavel por controlar acoes da camera==================
@@ -57,6 +59,7 @@ class WebcamController:
 
     #Permite que o opencv se conecte com a camera do pc
     webcam = cv2.VideoCapture(0)
+    #webcam = cv2.VideoCapture("http://192.168.0.121")
 
     #armazena a data atual
     now = datetime.datetime.now()
@@ -79,9 +82,6 @@ class WebcamController:
     #armazena o diretorio onde o arquivo dos dados do dicionario time sera armazenado
     dir_time_file = f"{dir_base}/assets/files/time/time_{date_format}.pkl"
 
-    #armazena o diretorio onde o arquivo dos dados do dicionario square sera armazenado
-    dir_square_file = f"{dir_base}/assets/files/square/square_{date_format}.pkl"
-
     # Limiar utilizado para delimitar evento de sonolência
     EYE_EAR_THRESH = 0.3
     # quantidade de frames que o olho deve estar abaixo do limite
@@ -89,12 +89,6 @@ class WebcamController:
 
     # Contadores de quadros
     COUNTER = 0
-
-    #variavel que armazena o valor atual da onda quadrada (0,5 -> olho aberto, 0 -> olho fechado)
-    switch_square = 1
-
-    #armazena os valores de switch_square
-    square = {'square': []}
 
     #dicionario que armazena a série temporal dos valores EAR
     data = {'ear': []}
@@ -127,47 +121,35 @@ class WebcamController:
         # eye avarage ratio -> proporção média dos olhos
         ear = (leftEAR + rightEAR) / 2
 
-        # arredondando o valor de ear para duas cadas decimais
-        #ear_arredondado = round(ear, 2)
-        ear_arredondado = ear
-
-        '''if self.data['ear'] and (max(self.data['ear']) - min(self.data['ear'])):
-            std = ( ear_arredondado - min(self.data['ear']) )/ (max(self.data['ear']) - min(self.data['ear']))
-            ear_scaled = std * (1 - 0) + 0
-        else:
-            ear_scaled = ear_arredondado'''
-
         # adiciona o valor de EAE arredondado na serie temporal
         self.data['ear'].append(ear)
-    
-        return ear_arredondado
+        
+        return round(ear, 6)
 
-    def updateEyeEarThresh(self):
+    def updateEyeEarThreshAndFatiqueLevel(self):
 
-        dados = {
-            "ear": self.data['ear']
-        }
+        ear = np.array(self.data['ear'])
+        #ear = moving_average(ear, 2)
+        ear = ear.reshape(-1,1)
 
-        #cria um pandas dataframe
-        dados = pd.DataFrame(dados)
+        kmeans = KMeans(n_clusters=2, random_state=0).fit(ear)
+        data = np.column_stack((range(len(ear)), ear, kmeans.labels_))
 
-        #define um novo valor para ear (média - variância)
-        new_ear = round(dados['ear'].mean(), 4) - round(dados['ear'].var(), 4)
+        # low values cluster
+        maskLow = data[:,2] == 0
+        # high values cluster
+        maskHigh = data[:,2] == 1
 
-        #instância o modelo de floresta de isolação
-        isolation_model = IsolationForest(contamination = 0.03)
-        #treina o modelo 
-        isolation_model.fit(dados)
-        #rotula dados:
-        #  1: dados normais
-        #  -1: valoresa discrepantes 
-        predictions = isolation_model.predict(dados)
+        # Threshold values of each cluster
+        lowMax = data[maskLow, 1].max()
+        highMin = data[maskHigh, 1].min()
+        # Average of cluster limits as probable decision boundary
+        threshold = (lowMax + highMin)/2
 
-        if -1 in list(predictions):
-            outlier = len(list(predictions)) - 1 - list(predictions)[::-1].index(-1)
-            return dados['ear'][outlier]
+        eye_open = len(list(filter(lambda age: age > threshold, self.data['ear'])))
+        eye_close = len(self.data['ear']) - eye_open
 
-        return round(new_ear, 2)
+        return round(threshold, 6), round((eye_open/eye_close), 6)
 
     def setTime(self):
         # armazena data atual 
@@ -188,7 +170,6 @@ class WebcamController:
 
         with open(self.dir_time_file, 'wb') as handle: pickle.dump(self.time, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-        with open(self.dir_square_file, 'wb') as handle: pickle.dump(self.square, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def initThreadAlarmSound(self):
         # ligar alarme
@@ -244,39 +225,29 @@ class WebcamController:
                     ear = self.calculateAverageAndInsertIntoTheEARList(leftEAR, rightEAR)
 
                     #atualiza o valor do EYE_EAR_THRESH
-                    EYE_EAR_THRESH = self.updateEyeEarThresh()
-
-                    #armazena os valores da onda quadrada no dicionario esquare
-                    self.square["square"].append(self.switch_square)
-
-                    if ear < EYE_EAR_THRESH:
-                        self.switch_square = 0
-                        COUNTER += 1
-                        if COUNTER >= self.EYE_EAR_CONSEC_FRAMES:
+                    if len(self.data['ear']) > 20:
+                        EYE_EAR_THRESH,  reasonEye0penClosed= self.updateEyeEarThreshAndFatiqueLevel()
+                        print(f"reasoeye {reasonEye0penClosed}")
+                        if reasonEye0penClosed >= 1:
+                            cv2.putText(frame, "!!! Status: Atento !!!" , (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+                            self.ALARM_ON = False
+                        elif reasonEye0penClosed < 1 and reasonEye0penClosed >= 0.9:
+                            cv2.putText(frame, "!!! Status: Levemente Sonolento !!!" , (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 140, 255), 2)
+                            self.ALARM_ON = False
+                        elif reasonEye0penClosed < 0.9:
+                            cv2.putText(frame, "!!! ALERTA FADIGA !!!" , (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
                             self.savePictures(frame, gray)
                             #aciona a sirene de alerta
-                            self.initThreadAlarmSound()
+                            #self.initThreadAlarmSound()
 
-                            cv2.putText(frame, "!!! ALERTA FADIGA !!!" , (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
-
-                    else:
-
-                        cv2.putText(frame, "!!! Status: Atento !!!" , (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
-
-                        self.switch_square = 1
-                        COUNTER = 0
-                        self.ALARM_ON = False
-
+                        cv2.putText(frame, "EAR: {:.2f}".format(ear), (500, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            
+                        cv2.putText(frame, "EYE_EAR_THRESH: {:.2f}".format(EYE_EAR_THRESH), (365, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    
                     for(name, (i,j)) in self.FACIAL_LANDMARKS_IDXS.items():
                         # desenhe na imagem cada cordenada(x,y) referentes aos marcos do FACIAL_LANDMARKS_IDXS.
                         for (x, y) in shape[i:j]:
                             cv2.circle(frame, (x, y), 2, (0, 255, 0), -1)
-
-                    cv2.putText(frame, "EAR: {:.2f}".format(ear), (500, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            
-                    cv2.putText(frame, "EYE_EAR_THRESH: {:.2f}".format(EYE_EAR_THRESH), (365, 80),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
         
                 cv2.imshow("Controller Webcam", frame)
 
