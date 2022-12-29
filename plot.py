@@ -28,10 +28,21 @@ class Plot:
 
         plt.plot(data_ear['ear'])
         plt.autoscale = True
-        #plt.xscale('log')
-        #plt.yscale('log')
         plt.xlabel("Time")
         plt.ylabel("EAR")
         plt.title("Eye Avarage Ratio")
         plt.show()
+
+        plt.style.use('_mpl-gallery')
+        # plot
+        fig, ax = plt.subplots()
+
+        ax.stem(sorted(data_ear['ear']))
+
+        plt.xlabel("Time")
+        plt.ylabel("EAR")
+        plt.title("Eye Avarage Ratio")
+
+        plt.show()
+
 

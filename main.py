@@ -21,6 +21,7 @@ from sklearn.preprocessing import MinMaxScaler
 scaler = MinMaxScaler()
 from sklearn.cluster import KMeans
 import urllib.request
+import matplotlib.pyplot as plt
 
 #=====================================================================================
 #===================classe responsavel por controlar acoes da camera==================
@@ -59,7 +60,6 @@ class WebcamController:
 
     #Permite que o opencv se conecte com a camera do pc
     webcam = cv2.VideoCapture(0)
-    #webcam = cv2.VideoCapture("http://192.168.0.121")
 
     #armazena a data atual
     now = datetime.datetime.now()
@@ -141,12 +141,11 @@ class WebcamController:
         maskHigh = data[:,2] == 1
 
         # Threshold values of each cluster
-        lowMax = data[maskLow, 1].max()
-        highMin = data[maskHigh, 1].min()
+        lowMax = data[maskLow, 1].min()
+        highMin = data[maskHigh, 1].max()
         # Average of cluster limits as probable decision boundary
         threshold = (lowMax + highMin)/2
-
-        eye_open = len(list(filter(lambda age: age > threshold, self.data['ear'])))
+        eye_open = len(list(filter(lambda ear: ear > threshold, self.data['ear'])))
         eye_close = len(self.data['ear']) - eye_open
 
         return round(threshold, 6), round((eye_open/eye_close), 6)
@@ -225,16 +224,16 @@ class WebcamController:
                     ear = self.calculateAverageAndInsertIntoTheEARList(leftEAR, rightEAR)
 
                     #atualiza o valor do EYE_EAR_THRESH
-                    if len(self.data['ear']) > 20:
+                    if len(self.data['ear']) > 60:
                         EYE_EAR_THRESH,  reasonEye0penClosed= self.updateEyeEarThreshAndFatiqueLevel()
-                        print(f"reasoeye {reasonEye0penClosed}")
+                        print(f"reason {reasonEye0penClosed}")
                         if reasonEye0penClosed >= 1:
                             cv2.putText(frame, "!!! Status: Atento !!!" , (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
                             self.ALARM_ON = False
-                        elif reasonEye0penClosed < 1 and reasonEye0penClosed >= 0.9:
+                        elif reasonEye0penClosed < 1 and reasonEye0penClosed >= 0.95:
                             cv2.putText(frame, "!!! Status: Levemente Sonolento !!!" , (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 140, 255), 2)
                             self.ALARM_ON = False
-                        elif reasonEye0penClosed < 0.9:
+                        elif reasonEye0penClosed < 0.95:
                             cv2.putText(frame, "!!! ALERTA FADIGA !!!" , (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
                             self.savePictures(frame, gray)
                             #aciona a sirene de alerta
